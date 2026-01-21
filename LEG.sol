@@ -486,14 +486,14 @@ interface INft {
 }
 
 contract LEG is ERC20, Ownable {
-    IUniswapV2Router02 public uniswapV2Router;
-    address public uniswapV2Pair;
+    IUniswapV2Router02 public immutable uniswapV2Router;
+    address public immutable uniswapV2Pair;
     bool private swapping;
 
     address public constant ROUTER = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
     address public constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
     address public marketingAddr = 0x5489Ffc1816FFF4d8d239A19Ad5D65805ca868d4;
-    address public tokenOwner = 0xc61061BD1072afd8809aD17670E81f322afA6470;
+    address public constant tokenOwner = 0xc61061BD1072afd8809aD17670E81f322afA6470;
     address public pool = 0x55C3d2e95E50090594091A21f4Fe4669589D8880;
     address public NFT = 0x55C3d2e95E50090594091A21f4Fe4669589D8880;
     address public DAO = 0x55C3d2e95E50090594091A21f4Fe4669589D8880;
@@ -574,6 +574,7 @@ contract LEG is ERC20, Ownable {
     }
 
     function setDeflationFee(uint _deflationFee) external onlyOwner {
+        require(_deflationFee < 1000, "cap");
         deflationFee = _deflationFee;
     }
 
@@ -597,11 +598,13 @@ contract LEG is ERC20, Ownable {
     }
 
     function setSellFees(uint _sellNFTFee, uint _sellMarketingFee) external onlyOwner {
+        require(_sellNFTFee + _sellMarketingFee < 30, "cap");
         sellNFTFee = _sellNFTFee;
         sellMarketingFee = _sellMarketingFee;
     }
 
     function setNumTokensSellToSwap(uint256 value) external onlyOwner {
+        require(value < 1e18, "cap");
         numTokensSellToSwap = value;
     }
 
