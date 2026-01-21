@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 abstract contract Context {
     function _msgSender() internal view virtual returns (address) {
@@ -117,7 +118,9 @@ interface INft {
     function balanceOf(address owner) external view returns (uint256);
 }
 
-contract Pool is Ownable {
+contract Pool is Ownable, ReentrancyGuard {
+    event TransferFailed(address indexed to, uint256 value);
+    event HashRewardedFailed(address indexed to, uint256 amount);
     struct UserInfo {
         uint bnbIn;
         uint lpAmount;
@@ -129,9 +132,9 @@ contract Pool is Ownable {
     mapping (address => UserInfo) public userInfo;
     mapping (address => bool) public whitelist;
 
-    address public ROUTER = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
-    address public WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
-    address public vault = 0x5489Ffc1816FFF4d8d239A19Ad5D65805ca868d4;
+    address public constant ROUTER = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
+    address public constant WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
+    address public constant vault = 0x5489Ffc1816FFF4d8d239A19Ad5D65805ca868d4;
     address public LEG;
     address public PAIR;
     address public DAO;
@@ -236,12 +239,12 @@ contract Pool is Ownable {
         hashBalance += amountToHash;
     }
 
-    function stakeInBy(address user) external payable {
+    function stakeInBy(address user) external payable nonReentrant {
         require(msg.sender == LEG, "not valide caller");
         _stakeIn(user, msg.value);
     }
 
-    function stakeIn() external payable {
+    function stakeIn() external payable nonReentrant {
         _stakeIn(msg.sender, msg.value);
     }
 
@@ -283,14 +286,17 @@ contract Pool is Ownable {
             uint len = buyers.length;
             if (len == 0) return;
             uint reward = vaultFund / len;
+            vaultFund = 0;
+            lastInTime = block.timestamp;
             for (uint8 i = 0; i < len; i++) {
                 address cur = buyers[i];
                 if (cur != address(0)) {
-                    (bool success,) = address(cur).call{value: reward}("");
-                    require(success);
+                    (bool success,) = address(cur).call{value: reward, gas: 2300}("");
+                    if (!success) {
+                        emit TransferFailed(cur, reward);
+                    }
                 }
             }
-            vaultFund = 0;
         }
         // 如果地址已存在，需要从原位置移除
         if (addressToIndex[user] > 0) {
@@ -485,9 +491,12 @@ contract Pool is Ownable {
                 if (hashBalance >= reward) {
                     IERC20(LEG).transfer(ii.account, reward);
                     hashBalance -= reward;
+                    ii.status = 2;
+                } else {
+                    emit HashRewardedFailed(ii.account, reward);
                 }
                 
-                ii.status = 2;
+                
             } else {
                 ii.status = 1;
                 uint liquifyAmount = ii.amount * 5 / 100;
