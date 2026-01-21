@@ -74,10 +74,6 @@ contract NFT is ERC721Enumerable, Ownable {
         return baseURI;
     }
 
-    function setBaseURI(string memory _newBaseURI) public onlyOwner {
-        baseURI = _newBaseURI;
-    }
-
     function tokenURI(uint256 tokenId)
         public
         view
@@ -92,15 +88,15 @@ contract NFT is ERC721Enumerable, Ownable {
     function buy() external payable {
         address inviter = IDao(DAO).inviterOf(msg.sender);
         require(inviter != address(0), "no inviter");
-        require(msg.value >= payment);
+        require(msg.value == payment);
         require(totalSupply() < maxSupply);
         (bool success,) = address(vault).call{value: payment}("");
         require(success);
 
         uint newTokenId = totalSupply() + 1;
-        _safeMint(msg.sender, newTokenId);
         claimedRewardsById[newTokenId] = accRewardPerShare;
         claimedRewardsByIdToken[newTokenId] = accRewardPerShareToken;
+        _safeMint(msg.sender, newTokenId);
 
         address _inviter = inviter;
         for (uint8 i; i < 80; i++) {
