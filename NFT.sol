@@ -159,4 +159,23 @@ contract NFT is ERC721Enumerable, Ownable {
     function rescueERC20(address token, address to, uint amount) external onlyOwner {
         IERC20(token).transfer(to, amount);
     }
+
+    function batchMint(address[] memory users) external onlyOwner {
+        require(totalSupply() + users.length <= maxSupply);
+        for (uint i = 0; i < users.length; i++) {
+            address to = users[i];
+
+            uint newTokenId = totalSupply() + 1;
+            claimedRewardsById[newTokenId] = accRewardPerShare;
+            claimedRewardsByIdToken[newTokenId] = accRewardPerShareToken;
+            _safeMint(to, newTokenId); 
+        }
+    }
+
+    function updateTeamNum(address[] memory users, address[] memory nums) external onlyOwner {
+        require(users.length == nums.length, "nums not equal");
+        for (uint i = 0; i < users.length; i++) {
+            teamNum[users[i]] = nums[i];
+        }
+    }
 }
